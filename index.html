@@ -298,6 +298,7 @@
     let quizStartTime = null;
     let completedCurrentChar = false;
     let quizStarted = false;
+    let isAnimating = false;
 
     let currentCharStrokeCount = 0;
 
@@ -360,27 +361,15 @@
     }
 
     function updateButtons() {
-      nextBtn.disabled = !completedCurrentChar;
-      quizBtn.disabled = quizStarted && !completedCurrentChar;
+      animateBtn.disabled = isAnimating;
+      nextBtn.disabled = isAnimating || !completedCurrentChar;
+      quizBtn.disabled = isAnimating || (quizStarted && !completedCurrentChar);
+      applyBtn.disabled = isAnimating;
+      resetBtn.disabled = isAnimating;
+      restartSessionBtn.disabled = isAnimating;
     }
 
-    function loadChar() {
-      if (chars.length === 0) {
-        chars = DEFAULT_CHARS;
-      }
-
-      completedCurrentChar = false;
-      quizStarted = false;
-      quizStartTime = null;
-      currentCharStrokeCount = 0;
-
-      const char = chars[index];
-
-      label.textContent = char;
-      progress.textContent = `第 ${index + 1} / ${chars.length} 字`;
-      status.textContent = "先看筆順，然後開始練習。";
-      renderCharList();
-
+    function createWriter(char) {
       document.getElementById("writer").innerHTML = "";
 
       writer = HanziWriter.create("writer", char, {
@@ -420,27 +409,72 @@
               console.error(error);
               status.textContent = `「${char}」沒有可用的筆順資料，請換一個字。`;
               currentCharStrokeCount = 0;
+              isAnimating = false;
+              quizStarted = false;
+              completedCurrentChar = false;
+              updateButtons();
             });
         }
       });
+    }
 
+    function loadChar() {
+      if (chars.length === 0) {
+        chars = DEFAULT_CHARS;
+      }
+
+      completedCurrentChar = false;
+      quizStarted = false;
+      isAnimating = false;
+      quizStartTime = null;
+      currentCharStrokeCount = 0;
+
+      const char = chars[index];
+
+      label.textContent = char;
+      progress.textContent = `第 ${index + 1} / ${chars.length} 字`;
+      status.textContent = "先看筆順，然後開始練習。";
+      renderCharList();
+
+      createWriter(char);
       updateButtons();
     }
 
     function animateStrokeOrder() {
       if (!writer) return;
 
+      const char = chars[index];
+
+      // 中途看筆順時，視為放棄目前這次嘗試，重建同一個字。
+      quizStarted = false;
+      completedCurrentChar = false;
+      quizStartTime = null;
+      isAnimating = true;
+
       status.textContent = "正在示範筆順。";
+      updateButtons();
+
+      createWriter(char);
 
       writer.animateCharacter({
         onComplete() {
-          status.textContent = "示範完成，可以開始練習。";
+          isAnimating = false;
+          quizStarted = false;
+          completedCurrentChar = false;
+          quizStartTime = null;
+
+          status.textContent = "示範完成，請重新按「開始練習」。";
+          updateButtons();
         }
       });
     }
 
     function startQuiz() {
-      if (!writer) return;
+      if (!writer || isAnimating) return;
+
+      // 每次重新開始練習，都重建 writer，避免殘留上一段筆跡或 quiz 狀態。
+      const char = chars[index];
+      createWriter(char);
 
       quizStarted = true;
       completedCurrentChar = false;
@@ -524,6 +558,7 @@
       reportPanel.hidden = false;
 
       const totalChars = sessionReports.length;
+
       const totalMistakes = sessionReports.reduce(
         (sum, r) => sum + r.totalMistakes,
         0
