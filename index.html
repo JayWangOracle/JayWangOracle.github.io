@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>中文筆順練習</title>
+
+  <style>
+    :root {
+      --bg: #f7f7f7;
+      --card: #ffffff;
+      --text: #222222;
+      --muted: #666666;
+      --border: #dddddd;
+      --primary: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin: 12px 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 16px 0 10px;
+    }
+
+    p {
+      color: var(--muted);
+      margin: 8px 0;
+    }
+
+    .page {
+      width: 720px;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px auto;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    #writer {
+      width: 320px;
+      height: 320px;
+      max-width: 90vw;
+      max-height: 90vw;
+      margin: 18px auto;
+      background: white;
+      border: 2px solid #333;
+      border-radius: 4px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    button.success {
+      background: var(--success);
+      color: white;
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    #status {
+      min-height: 30px;
+      font-size: 18px;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    #progress {
+      font-size: 16px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 86px;
+      resize: vertical;
+      font-size: 22px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    #charList {
+      font-size: 16px;
+      color: var(--muted);
+      margin-top: 10px;
+      word-break: break-all;
+      line-height: 1.6;
+    }
+
+    #reportPanel {
+      text-align: left;
+    }
+
+    #reportPanel h2 {
+      text-align: center;
+    }
+
+    #summary {
+      line-height: 1.8;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+
+    .tableWrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: white;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f3f4f6;
+    }
+
+    .熟練 {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .可再練 {
+      color: #d97706;
+      font-weight: 700;
+    }
+
+    .需複習 {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .small {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 420px) {
+      body {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      button {
+        width: calc(50% - 8px);
+      }
+
+      #writer {
+        width: 300px;
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <h1>中文筆順練習：<span id="charLabel"></span></h1>
+
+    <section class="card">
+      <div id="progress"></div>
+
+      <div id="writer"></div>
+
+      <div class="buttons">
+        <button id="animateBtn">看筆順</button>
+        <button id="quizBtn" class="primary">開始練習</button>
+        <button id="nextBtn" class="success">下一字</button>
+        <button id="restartSessionBtn">重新開始</button>
+      </div>
+
+      <div id="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>自訂本次練習字庫</h2>
+      <p>輸入想練的中文字，例如：永人大中小水火山</p>
+
+      <textarea id="charsInput" placeholder="請輸入要練習的中文字"></textarea>
+
+      <div class="buttons">
+        <button id="applyBtn" class="primary">套用字庫</button>
+        <button id="shareBtn">複製分享連結</button>
+        <button id="resetBtn" class="danger">恢復預設字庫</button>
+      </div>
+
+      <div id="charList"></div>
+
+      <p class="small">
+        也可以用網址指定字庫，例如：?chars=永人大中小
+      </p>
+    </section>
+
+    <section id="reportPanel" class="card" hidden>
+      <h2>本次練習報告</h2>
+
+      <div id="summary"></div>
+
+      <div class="tableWrap">
+        <table id="reportTable">
+          <thead>
+            <tr>
+              <th>字</th>
+              <th>筆畫</th>
+              <th>錯誤</th>
+              <th>時間</th>
+              <th>平均每筆錯誤</th>
+              <th>狀態</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="buttons">
+        <button id="restartFromReportBtn" class="primary">重新練習本字庫</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+
+  <script>
+    const DEFAULT_CHARS = ["永", "人", "大", "小", "中", "水", "火", "山"];
+    const STORAGE_KEY = "practice_chars";
+
+    let chars = [];
+    let index = 0;
+    let writer = null;
+
+    let sessionReports = [];
+    let quizStartTime = null;
+    let completedCurrentChar = false;
+    let quizStarted = false;
+
+    const label = document.getElementById("charLabel");
+    const status = document.getElementById("status");
+    const progress = document.getElementById("progress");
+    const charsInput = document.getElementById("charsInput");
+    const charList = document.getElementById("charList");
+    const reportPanel = document.getElementById("reportPanel");
+    const summary = document.getElementById("summary");
+    const reportTbody = document.querySelector("#reportTable tbody");
+
+    const animateBtn = document.getElementById("animateBtn");
+    const quizBtn = document.getElementById("quizBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const restartSessionBtn = document.getElementById("restartSessionBtn");
+    const applyBtn = document.getElementById("applyBtn");
+    const shareBtn = document.getElementById("shareBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const restartFromReportBtn = document.getElementById("restartFromReportBtn");
+
+    function normalizeChars(text) {
+      return [...text]
+        .filter(ch => /\p{Script=Han}/u.test(ch))
+        .filter((ch, i, arr) => arr.indexOf(ch) === i);
+    }
+
+    function getCharsFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const raw = params.get("chars");
+      return raw ? normalizeChars(raw) : [];
+    }
+
+    function getInitialChars() {
+      const urlChars = getCharsFromUrl();
+
+      if (urlChars.length > 0) {
+        return urlChars;
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        const savedChars = normalizeChars(saved);
+        if (savedChars.length > 0) {
+          return savedChars;
+        }
+      }
+
+      return DEFAULT_CHARS;
+    }
+
+    function saveChars() {
+      localStorage.setItem(STORAGE_KEY, chars.join(""));
+    }
+
+    function renderCharList() {
+      charsInput.value = chars.join("");
+      charList.textContent = `目前字庫：${chars.join("、")}`;
+    }
+
+    function updateButtons() {
+      nextBtn.disabled = !completedCurrentChar;
+      quizBtn.disabled = quizStarted && !completedCurrentChar;
+    }
+
+    function loadChar() {
+      if (chars.length === 0) {
+        chars = DEFAULT_CHARS;
+      }
+
+      completedCurrentChar = false;
+      quizStarted = false;
+      quizStartTime = null;
+
+      const char = chars[index];
+
+      label.textContent = char;
+      progress.textContent = `第 ${index + 1} / ${chars.length} 字`;
+      status.textContent = "先看筆順，然後開始練習。";
+      renderCharList();
+
+      document.getElementById("writer").innerHTML = "";
+
+      writer = HanziWriter.create("writer", char, {
+        width: 320,
+        height: 320,
+        padding: 20,
+
+        showOutline: true,
+        showCharacter: false,
+
+        strokeAnimationSpeed: 1,
+        delayBetweenStrokes: 300,
+
+        drawingWidth: 28,
+        drawingColor: "#111",
+
+        outlineColor: "#dddddd",
+        strokeColor: "#333333",
+        radicalColor: "#168f6b"
+      });
+
+      updateButtons();
+    }
+
+    function animateStrokeOrder() {
+      if (!writer) return;
+
+      status.textContent = "正在示範筆順。";
+
+      writer.animateCharacter({
+        onComplete() {
+          status.textContent = "示範完成，可以開始練習。";
+        }
+      });
+    }
+
+    function startQuiz() {
+      if (!writer) return;
+
+      quizStarted = true;
+      completedCurrentChar = false;
+      quizStartTime = Date.now();
+
+      status.textContent = `請照正確筆順書寫：${chars[index]}`;
+      updateButtons();
+
+      writer.quiz({
+        showHintAfterMisses: 1,
+
+        onMistake(strokeData) {
+          status.textContent =
+            `這一筆不太對，目前這一筆錯了 ${strokeData.mistakesOnStroke} 次。`;
+        },
+
+        onCorrectStroke(strokeData) {
+          status.textContent =
+            `很好，第 ${strokeData.strokeNum + 1} 筆正確。`;
+        },
+
+        onComplete(summaryData) {
+          completedCurrentChar = true;
+          quizStarted = false;
+
+          const durationSeconds = Math.max(
+            1,
+            Math.round((Date.now() - quizStartTime) / 1000)
+          );
+
+          const report = {
+            char: chars[index],
+            totalStrokes: summaryData.characterStats.length,
+            totalMistakes: summaryData.totalMistakes,
+            durationSeconds,
+            completedAt: new Date().toLocaleString()
+          };
+
+          sessionReports.push(report);
+
+          if (index === chars.length - 1) {
+            status.textContent = "本次字庫已全部練習完成，已產生練習報告。";
+            renderSessionReport();
+          } else {
+            status.textContent = `「${chars[index]}」完成！請按「下一字」繼續。`;
+          }
+
+          updateButtons();
+        }
+      });
+    }
+
+    function nextChar() {
+      if (!completedCurrentChar) {
+        status.textContent = "請先完成目前這個字，再進入下一字。";
+        return;
+      }
+
+      if (index >= chars.length - 1) {
+        renderSessionReport();
+        status.textContent = "已完成全部練習。";
+        return;
+      }
+
+      index += 1;
+      loadChar();
+    }
+
+    function getReviewStatus(report) {
+      if (report.totalMistakes === 0) return "熟練";
+      if (report.totalMistakes <= 2) return "可再練";
+      return "需複習";
+    }
+
+    function renderSessionReport() {
+      reportPanel.hidden = false;
+
+      const totalChars = sessionReports.length;
+      const totalMistakes = sessionReports.reduce(
+        (sum, r) => sum + r.totalMistakes,
+        0
+      );
+      const totalTime = sessionReports.reduce(
+        (sum, r) => sum + r.durationSeconds,
+        0
+      );
+      const reviewCount = sessionReports.filter(
+        r => getReviewStatus(r) === "需複習"
+      ).length;
+
+      const averageMistakesPerChar = totalChars
+        ? (totalMistakes / totalChars).toFixed(2)
+        : "0.00";
+
+      const totalStrokes = sessionReports.reduce(
+        (sum, r) => sum + r.totalStrokes,
+        0
+      );
+
+      const averageMistakesPerStroke = totalStrokes
+        ? (totalMistakes / totalStrokes).toFixed(2)
+        : "0.00";
+
+      summary.innerHTML = `
+        本次完成 <strong>${totalChars}</strong> 個字。<br>
+        總筆畫：<strong>${totalStrokes}</strong> 筆。<br>
+        總錯誤：<strong>${totalMistakes}</strong> 次。<br>
+        平均每字錯誤：<strong>${averageMistakesPerChar}</strong> 次。<br>
+        平均每筆錯誤：<strong>${averageMistakesPerStroke}</strong> 次。<br>
+        總練習時間：<strong>${totalTime}</strong> 秒。<br>
+        需要複習：<strong>${reviewCount}</strong> 個字。
+      `;
+
+      reportTbody.innerHTML = sessionReports.map(r => {
+        const perStrokeMistakes = r.totalStrokes
+          ? (r.totalMistakes / r.totalStrokes).toFixed(2)
+          : "0.00";
+
+        const reviewStatus = getReviewStatus(r);
+
+        return `
+          <tr>
+            <td>${r.char}</td>
+            <td>${r.totalStrokes}</td>
+            <td>${r.totalMistakes}</td>
+            <td>${r.durationSeconds} 秒</td>
+            <td>${perStrokeMistakes}</td>
+            <td class="${reviewStatus}">${reviewStatus}</td>
+          </tr>
+        `;
+      }).join("");
+
+      reportPanel.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+    function restartSession() {
+      sessionReports = [];
+      index = 0;
+      reportPanel.hidden = true;
+      loadChar();
+      status.textContent = "已重新開始本次練習。";
+    }
+
+    function applyCustomChars() {
+      const nextChars = normalizeChars(charsInput.value);
+
+      if (nextChars.length === 0) {
+        status.textContent = "請至少輸入一個中文字。";
+        return;
+      }
+
+      chars = nextChars;
+      index = 0;
+      sessionReports = [];
+      reportPanel.hidden = true;
+
+      saveChars();
+      loadChar();
+
+      status.textContent = "已套用新的練習字庫，請開始本次練習。";
+    }
+
+    async function copyShareLink() {
+      const url = new URL(location.href);
+      url.searchParams.set("chars", chars.join(""));
+
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        status.textContent = "已複製分享連結。";
+      } catch {
+        status.textContent = `分享連結：${url.toString()}`;
+      }
+    }
+
+    function resetChars() {
+      chars = DEFAULT_CHARS;
+      index = 0;
+      sessionReports = [];
+      reportPanel.hidden = true;
+
+      saveChars();
+
+      const url = new URL(location.href);
+      url.searchParams.delete("chars");
+      history.replaceState(null, "", url.toString());
+
+      loadChar();
+
+      status.textContent = "已恢復預設字庫。";
+    }
+
+    animateBtn.onclick = animateStrokeOrder;
+    quizBtn.onclick = startQuiz;
+    nextBtn.onclick = nextChar;
+    restartSessionBtn.onclick = restartSession;
+    restartFromReportBtn.onclick = restartSession;
+    applyBtn.onclick = applyCustomChars;
+    shareBtn.onclick = copyShareLink;
+    resetBtn.onclick = resetChars;
+
+    chars = getInitialChars();
+    loadChar();
+  </script>
+</body>
+</html>
