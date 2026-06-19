@@ -301,6 +301,7 @@
       </div>
 
       <div class="buttons">
+        <button id="reviewMistakesBtn" class="success">再次練習錯誤字</button>
         <button id="restartFromReportBtn" class="primary">重新練習本字庫</button>
       </div>
     </section>
@@ -343,6 +344,7 @@
     const shareBtn = document.getElementById("shareBtn");
     const resetBtn = document.getElementById("resetBtn");
     const restartFromReportBtn = document.getElementById("restartFromReportBtn");
+    const reviewMistakesBtn = document.getElementById("reviewMistakesBtn");
 
     function normalizeChars(text) {
       return [...text]
@@ -669,8 +671,8 @@
         r => r.dataSource === "人工修正版"
       ).length;
 
-      const reviewCount = sessionReports.filter(
-        r => getReviewStatus(r) === "需複習"
+      const mistakeCharCount = sessionReports.filter(
+        r => r.totalMistakes > 0
       ).length;
 
       const averageMistakesPerChar = totalChars
@@ -689,7 +691,7 @@
         平均每字錯誤：<strong>${averageMistakesPerChar}</strong> 次。<br>
         平均每筆錯誤：<strong>${averageMistakesPerStroke}</strong> 次。<br>
         總練習時間：<strong>${totalTime}</strong> 秒。<br>
-        需要複習：<strong>${reviewCount}</strong> 個字。
+        寫錯需再次練習：<strong>${mistakeCharCount}</strong> 個字。
       `;
 
       reportTbody.innerHTML = sessionReports.map(r => {
@@ -712,6 +714,8 @@
         `;
       }).join("");
 
+      reviewMistakesBtn.disabled = mistakeCharCount === 0;
+
       reportPanel.scrollIntoView({
         behavior: "smooth",
         block: "start"
@@ -724,6 +728,28 @@
       reportPanel.hidden = true;
       loadChar();
       status.textContent = "已重新開始本次練習。";
+    }
+
+    function reviewMistakeChars() {
+      const mistakeChars = sessionReports
+        .filter(r => r.totalMistakes > 0)
+        .map(r => r.char)
+        .filter((ch, i, arr) => arr.indexOf(ch) === i);
+
+      if (mistakeChars.length === 0) {
+        status.textContent = "本次沒有寫錯的字，不需要再次練習。";
+        return;
+      }
+
+      chars = mistakeChars;
+      index = 0;
+      sessionReports = [];
+      reportPanel.hidden = true;
+
+      saveChars();
+      loadChar();
+
+      status.textContent = `已建立錯誤字複習，共 ${chars.length} 個字。`;
     }
 
     function applyCustomChars() {
@@ -788,6 +814,7 @@
     nextBtn.onclick = nextChar;
     restartSessionBtn.onclick = restartSession;
     restartFromReportBtn.onclick = restartSession;
+    reviewMistakesBtn.onclick = reviewMistakeChars;
     applyBtn.onclick = applyCustomChars;
     shareBtn.onclick = copyShareLink;
     resetBtn.onclick = resetChars;
