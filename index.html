@@ -15,6 +15,7 @@
       --primary: #2563eb;
       --danger: #dc2626;
       --success: #16a34a;
+      --warning: #d97706;
     }
 
     * {
@@ -46,7 +47,7 @@
     }
 
     .page {
-      width: 720px;
+      width: 760px;
       max-width: 100%;
       margin: 0 auto;
     }
@@ -116,10 +117,21 @@
       line-height: 1.5;
     }
 
-    #progress {
+    #progress,
+    #dataSource {
       font-size: 16px;
       color: var(--muted);
       margin-top: 6px;
+    }
+
+    #dataSource.custom {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    #dataSource.fallback {
+      color: var(--warning);
+      font-weight: 700;
     }
 
     textarea {
@@ -184,7 +196,7 @@
     }
 
     .可再練 {
-      color: #d97706;
+      color: var(--warning);
       font-weight: 700;
     }
 
@@ -196,6 +208,13 @@
     .small {
       font-size: 14px;
       color: var(--muted);
+      line-height: 1.6;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 2px 5px;
+      border-radius: 4px;
     }
 
     @media (max-width: 420px) {
@@ -225,6 +244,7 @@
 
     <section class="card">
       <div id="progress"></div>
+      <div id="dataSource"></div>
 
       <div id="writer"></div>
 
@@ -253,7 +273,8 @@
       <div id="charList"></div>
 
       <p class="small">
-        也可以用網址指定字庫，例如：?chars=永人大中小
+        也可以用網址指定字庫，例如：<code>?chars=永人大中小</code><br>
+        若 repo 內有 <code>custom-data/字.json</code>，會優先使用人工修正版；找不到才使用 Hanzi Writer 預設資料。
       </p>
     </section>
 
@@ -267,6 +288,7 @@
           <thead>
             <tr>
               <th>字</th>
+              <th>資料來源</th>
               <th>筆畫</th>
               <th>錯誤</th>
               <th>時間</th>
@@ -301,10 +323,12 @@
     let isAnimating = false;
 
     let currentCharStrokeCount = 0;
+    let currentDataSource = "尚未載入";
 
     const label = document.getElementById("charLabel");
     const status = document.getElementById("status");
     const progress = document.getElementById("progress");
+    const dataSource = document.getElementById("dataSource");
     const charsInput = document.getElementById("charsInput");
     const charList = document.getElementById("charList");
     const reportPanel = document.getElementById("reportPanel");
@@ -360,6 +384,22 @@
       charList.textContent = `目前字庫：${chars.join("、")}`;
     }
 
+    function setDataSourceLabel(source) {
+      currentDataSource = source;
+
+      dataSource.classList.remove("custom", "fallback");
+
+      if (source === "custom") {
+        dataSource.textContent = "資料來源：人工修正版 custom-data";
+        dataSource.classList.add("custom");
+      } else if (source === "fallback") {
+        dataSource.textContent = "資料來源：Hanzi Writer 預設資料";
+        dataSource.classList.add("fallback");
+      } else {
+        dataSource.textContent = "資料來源：載入中";
+      }
+    }
+
     function updateButtons() {
       animateBtn.disabled = isAnimating;
       nextBtn.disabled = isAnimating || !completedCurrentChar;
@@ -369,8 +409,56 @@
       restartSessionBtn.disabled = isAnimating;
     }
 
+    async function loadCharacterData(char) {
+      const customUrl = `./custom-data/${encodeURIComponent(char)}.json`;
+      const fallbackUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2/${encodeURIComponent(char)}.json`;
+
+      try {
+        const customResponse = await fetch(customUrl, { cache: "no-store" });
+
+        if (customResponse.ok) {
+          const customData = await customResponse.json();
+
+          if (!isValidCharData(customData)) {
+            throw new Error(`custom-data/${char}.json 格式不正確`);
+          }
+
+          setDataSourceLabel("custom");
+          return customData;
+        }
+      } catch (error) {
+        console.warn("人工修正版載入失敗，改用預設資料：", error);
+      }
+
+      const fallbackResponse = await fetch(fallbackUrl);
+
+      if (!fallbackResponse.ok) {
+        throw new Error("找不到這個字的筆順資料");
+      }
+
+      const fallbackData = await fallbackResponse.json();
+
+      if (!isValidCharData(fallbackData)) {
+        throw new Error("預設筆順資料格式不正確");
+      }
+
+      setDataSourceLabel("fallback");
+      return fallbackData;
+    }
+
+    function isValidCharData(charData) {
+      return (
+        charData &&
+        Array.isArray(charData.strokes) &&
+        Array.isArray(charData.medians) &&
+        charData.strokes.length > 0 &&
+        charData.strokes.length === charData.medians.length
+      );
+    }
+
     function createWriter(char) {
       document.getElementById("writer").innerHTML = "";
+      setDataSourceLabel("loading");
 
       writer = HanziWriter.create("writer", char, {
         width: 320,
@@ -391,24 +479,21 @@
         radicalColor: "#168f6b",
 
         charDataLoader: function(char, onComplete) {
-          fetch(`https://cdn.jsdelivr.net/npm/hanzi-writer-data@2/${char}.json`)
-            .then(response => {
-              if (!response.ok) {
-                throw new Error("找不到這個字的筆順資料");
-              }
-              return response.json();
-            })
+          loadCharacterData(char)
             .then(charData => {
-              currentCharStrokeCount = Array.isArray(charData.strokes)
-                ? charData.strokes.length
-                : 0;
-
+              currentCharStrokeCount = charData.strokes.length;
               onComplete(charData);
             })
             .catch(error => {
               console.error(error);
+
               status.textContent = `「${char}」沒有可用的筆順資料，請換一個字。`;
               currentCharStrokeCount = 0;
+              currentDataSource = "無資料";
+
+              dataSource.classList.remove("custom", "fallback");
+              dataSource.textContent = "資料來源：無可用資料";
+
               isAnimating = false;
               quizStarted = false;
               completedCurrentChar = false;
@@ -428,6 +513,7 @@
       isAnimating = false;
       quizStartTime = null;
       currentCharStrokeCount = 0;
+      currentDataSource = "尚未載入";
 
       const char = chars[index];
 
@@ -445,7 +531,6 @@
 
       const char = chars[index];
 
-      // 中途看筆順時，視為放棄目前這次嘗試，重建同一個字。
       quizStarted = false;
       completedCurrentChar = false;
       quizStartTime = null;
@@ -472,15 +557,15 @@
     function startQuiz() {
       if (!writer || isAnimating) return;
 
-      // 每次重新開始練習，都重建 writer，避免殘留上一段筆跡或 quiz 狀態。
       const char = chars[index];
+
       createWriter(char);
 
       quizStarted = true;
       completedCurrentChar = false;
       quizStartTime = Date.now();
 
-      status.textContent = `請照正確筆順書寫：${chars[index]}`;
+      status.textContent = `請照正確筆順書寫：${char}`;
       updateButtons();
 
       writer.quiz({
@@ -511,7 +596,13 @@
               : 0;
 
           const report = {
-            char: chars[index],
+            char,
+            dataSource:
+              currentDataSource === "custom"
+                ? "人工修正版"
+                : currentDataSource === "fallback"
+                  ? "預設資料"
+                  : "未知",
             totalStrokes: currentCharStrokeCount,
             totalMistakes,
             durationSeconds,
@@ -524,7 +615,7 @@
             status.textContent = "本次字庫已全部練習完成，已產生練習報告。";
             renderSessionReport();
           } else {
-            status.textContent = `「${chars[index]}」完成！請按「下一字」繼續。`;
+            status.textContent = `「${char}」完成！請按「下一字」繼續。`;
           }
 
           updateButtons();
@@ -574,6 +665,10 @@
         0
       );
 
+      const customCount = sessionReports.filter(
+        r => r.dataSource === "人工修正版"
+      ).length;
+
       const reviewCount = sessionReports.filter(
         r => getReviewStatus(r) === "需複習"
       ).length;
@@ -588,6 +683,7 @@
 
       summary.innerHTML = `
         本次完成 <strong>${totalChars}</strong> 個字。<br>
+        使用人工修正版：<strong>${customCount}</strong> 個字。<br>
         總筆畫：<strong>${totalStrokes}</strong> 筆。<br>
         總錯誤：<strong>${totalMistakes}</strong> 次。<br>
         平均每字錯誤：<strong>${averageMistakesPerChar}</strong> 次。<br>
@@ -605,7 +701,8 @@
 
         return `
           <tr>
-            <td>${r.char}</td>
+            <td>${escapeHtml(r.char)}</td>
+            <td>${escapeHtml(r.dataSource)}</td>
             <td>${r.totalStrokes}</td>
             <td>${r.totalMistakes}</td>
             <td>${r.durationSeconds} 秒</td>
@@ -675,6 +772,15 @@
       loadChar();
 
       status.textContent = "已恢復預設字庫。";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     animateBtn.onclick = animateStrokeOrder;
