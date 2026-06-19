@@ -299,6 +299,8 @@
     let completedCurrentChar = false;
     let quizStarted = false;
 
+    let currentCharStrokeCount = 0;
+
     const label = document.getElementById("charLabel");
     const status = document.getElementById("status");
     const progress = document.getElementById("progress");
@@ -370,6 +372,7 @@
       completedCurrentChar = false;
       quizStarted = false;
       quizStartTime = null;
+      currentCharStrokeCount = 0;
 
       const char = chars[index];
 
@@ -396,7 +399,29 @@
 
         outlineColor: "#dddddd",
         strokeColor: "#333333",
-        radicalColor: "#168f6b"
+        radicalColor: "#168f6b",
+
+        charDataLoader: function(char, onComplete) {
+          fetch(`https://cdn.jsdelivr.net/npm/hanzi-writer-data@2/${char}.json`)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error("找不到這個字的筆順資料");
+              }
+              return response.json();
+            })
+            .then(charData => {
+              currentCharStrokeCount = Array.isArray(charData.strokes)
+                ? charData.strokes.length
+                : 0;
+
+              onComplete(charData);
+            })
+            .catch(error => {
+              console.error(error);
+              status.textContent = `「${char}」沒有可用的筆順資料，請換一個字。`;
+              currentCharStrokeCount = 0;
+            });
+        }
       });
 
       updateButtons();
@@ -446,10 +471,15 @@
             Math.round((Date.now() - quizStartTime) / 1000)
           );
 
+          const totalMistakes =
+            summaryData && typeof summaryData.totalMistakes === "number"
+              ? summaryData.totalMistakes
+              : 0;
+
           const report = {
             char: chars[index],
-            totalStrokes: summaryData.characterStats.length,
-            totalMistakes: summaryData.totalMistakes,
+            totalStrokes: currentCharStrokeCount,
+            totalMistakes,
             durationSeconds,
             completedAt: new Date().toLocaleString()
           };
@@ -498,10 +528,17 @@
         (sum, r) => sum + r.totalMistakes,
         0
       );
+
       const totalTime = sessionReports.reduce(
         (sum, r) => sum + r.durationSeconds,
         0
       );
+
+      const totalStrokes = sessionReports.reduce(
+        (sum, r) => sum + r.totalStrokes,
+        0
+      );
+
       const reviewCount = sessionReports.filter(
         r => getReviewStatus(r) === "需複習"
       ).length;
@@ -509,11 +546,6 @@
       const averageMistakesPerChar = totalChars
         ? (totalMistakes / totalChars).toFixed(2)
         : "0.00";
-
-      const totalStrokes = sessionReports.reduce(
-        (sum, r) => sum + r.totalStrokes,
-        0
-      );
 
       const averageMistakesPerStroke = totalStrokes
         ? (totalMistakes / totalStrokes).toFixed(2)
